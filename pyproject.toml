@@ -1,0 +1,30 @@
+[project]
+name = "tk-live-admin-backend"
+version = "0.1.0"
+description = "Standalone admin backend for tk-live user and usage management"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.13.0",
+    "fastapi>=0.115.0",
+    "passlib>=1.7.4",
+    "psycopg[binary]>=3.2.0",
+    "pydantic-settings>=2.6.0",
+    "python-jose[cryptography]>=3.3.0",
+    "python-multipart>=0.0.9",
+    "sqlalchemy>=2.0.0",
+    "uvicorn[standard]>=0.30.0",
+]
+
+[project.scripts]
+tk-live-admin-api = "app.main:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+exclude = ["alembic*"]
+
+[tool.uv]
+package = true
