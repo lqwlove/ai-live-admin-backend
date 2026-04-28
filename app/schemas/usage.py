@@ -20,6 +20,18 @@ class LiveSessionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class LiveSessionStart(BaseModel):
+    user_id: int | None = None
+    platform: str = ""
+
+
+class LiveSessionFinish(BaseModel):
+    status: str = "finished"
+    messages_count: int = Field(default=0, ge=0)
+    ai_replies_count: int = Field(default=0, ge=0)
+    audio_played_count: int = Field(default=0, ge=0)
+
+
 class AITokenLogCreate(BaseModel):
     user_id: int | None = None
     session_id: int | None = None
