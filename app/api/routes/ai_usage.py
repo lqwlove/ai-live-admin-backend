@@ -4,9 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_admin, verify_integration_key
+from app.api.deps import get_current_user, verify_integration_key
 from app.db.session import get_db
 from app.models.usage import AITokenUsageLog
+from app.models.user import User
 from app.schemas.common import ListResponse
 from app.schemas.usage import AITokenLogCreate, AITokenLogOut
 
@@ -15,9 +16,10 @@ router = APIRouter(prefix="/ai-token-logs", tags=["ai-token-logs"])
 integration_router = APIRouter(prefix="/integration/ai-token-logs", tags=["integration"])
 
 
-@router.get("", response_model=ListResponse[AITokenLogOut], dependencies=[Depends(get_current_admin)])
+@router.get("", response_model=ListResponse[AITokenLogOut])
 def list_ai_token_logs(
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=25, ge=1, le=100),
     user_id: int | None = None,
@@ -30,7 +32,9 @@ def list_ai_token_logs(
     stmt = select(AITokenUsageLog)
     count_stmt = select(func.count()).select_from(AITokenUsageLog)
     conditions = []
-    if user_id is not None:
+    if current_user.role != "admin":
+        conditions.append(AITokenUsageLog.user_id == current_user.id)
+    elif user_id is not None:
         conditions.append(AITokenUsageLog.user_id == user_id)
     if model:
         conditions.append(AITokenUsageLog.model == model)
@@ -57,10 +61,16 @@ def list_ai_token_logs(
     }
 
 
-@router.get("/{log_id}", response_model=AITokenLogOut, dependencies=[Depends(get_current_admin)])
-def get_ai_token_log(log_id: int, db: Session = Depends(get_db)) -> AITokenUsageLog:
+@router.get("/{log_id}", response_model=AITokenLogOut)
+def get_ai_token_log(
+    log_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> AITokenUsageLog:
     log = db.get(AITokenUsageLog, log_id)
     if not log:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="日志不存在")
+    if current_user.role != "admin" and log.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="日志不存在")
     return log
 

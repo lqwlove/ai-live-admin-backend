@@ -4,9 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_admin, verify_integration_key
+from app.api.deps import get_current_user, verify_integration_key
 from app.db.session import get_db
 from app.models.usage import TTSUsageLog
+from app.models.user import User
 from app.schemas.common import ListResponse
 from app.schemas.usage import TTSLogCreate, TTSLogOut
 
@@ -15,9 +16,10 @@ router = APIRouter(prefix="/tts-logs", tags=["tts-logs"])
 integration_router = APIRouter(prefix="/integration/tts-logs", tags=["integration"])
 
 
-@router.get("", response_model=ListResponse[TTSLogOut], dependencies=[Depends(get_current_admin)])
+@router.get("", response_model=ListResponse[TTSLogOut])
 def list_tts_logs(
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=25, ge=1, le=100),
     user_id: int | None = None,
@@ -31,7 +33,9 @@ def list_tts_logs(
     stmt = select(TTSUsageLog)
     count_stmt = select(func.count()).select_from(TTSUsageLog)
     conditions = []
-    if user_id is not None:
+    if current_user.role != "admin":
+        conditions.append(TTSUsageLog.user_id == current_user.id)
+    elif user_id is not None:
         conditions.append(TTSUsageLog.user_id == user_id)
     if provider:
         conditions.append(TTSUsageLog.provider == provider)
@@ -56,10 +60,16 @@ def list_tts_logs(
     }
 
 
-@router.get("/{log_id}", response_model=TTSLogOut, dependencies=[Depends(get_current_admin)])
-def get_tts_log(log_id: int, db: Session = Depends(get_db)) -> TTSUsageLog:
+@router.get("/{log_id}", response_model=TTSLogOut)
+def get_tts_log(
+    log_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> TTSUsageLog:
     log = db.get(TTSUsageLog, log_id)
     if not log:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="日志不存在")
+    if current_user.role != "admin" and log.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="日志不存在")
     return log
 

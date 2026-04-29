@@ -4,12 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_admin, get_current_user
-from app.core.security import create_access_token, verify_password
+from app.api.deps import get_current_user
+from app.core.security import create_access_token, get_password_hash, verify_password
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.auth import LoginRequest, TokenResponse
-from app.schemas.user import UserOut
+from app.schemas.user import PasswordChange, UserOut
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -38,8 +38,6 @@ def _touch_login_and_build_token(user: User, db: Session) -> TokenResponse:
 @router.post("/login", response_model=TokenResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
     user = _authenticate_user(payload, db)
-    if user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="仅管理员可登录后台")
     return _touch_login_and_build_token(user, db)
 
 
@@ -50,8 +48,24 @@ def app_login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResp
 
 
 @router.get("/me", response_model=UserOut)
-def me(current_admin: User = Depends(get_current_admin)) -> User:
-    return current_admin
+def me(current_user: User = Depends(get_current_user)) -> User:
+    return current_user
+
+
+@router.post("/change-password", response_model=UserOut)
+def change_password(
+    payload: PasswordChange,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> User:
+    if not verify_password(payload.current_password, current_user.password_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前密码错误")
+
+    current_user.password_hash = get_password_hash(payload.new_password)
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+    return current_user
 
 
 @router.get("/app-me", response_model=UserOut)
