@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -10,6 +11,14 @@ from app.models.usage import AITokenUsageLog
 from app.models.user import User
 from app.schemas.common import ListResponse
 from app.schemas.usage import AITokenLogCreate, AITokenLogOut
+from app.services.quota import (
+    QuotaExceededError,
+    apply_multiplier,
+    check_quota,
+    get_user_multiplier,
+    get_user_usage,
+    lock_user_for_quota,
+)
 
 
 router = APIRouter(prefix="/ai-token-logs", tags=["ai-token-logs"])
@@ -80,8 +89,23 @@ def create_ai_token_log(
     payload: AITokenLogCreate,
     db: Session = Depends(get_db),
     _: None = Depends(verify_integration_key),
-) -> AITokenUsageLog:
-    log = AITokenUsageLog(**payload.model_dump())
+) -> AITokenUsageLog | JSONResponse:
+    data = payload.model_dump()
+    billed_units = 0
+    if payload.user_id is not None and payload.success:
+        user = lock_user_for_quota(db, payload.user_id)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
+        multiplier = get_user_multiplier(user)
+        billed_units = apply_multiplier(payload.total_tokens, multiplier)
+        usage = get_user_usage(db, user)
+        try:
+            check_quota(user, usage, ai_delta=billed_units)
+        except QuotaExceededError as exc:
+            db.rollback()
+            return JSONResponse(status_code=status.HTTP_402_PAYMENT_REQUIRED, content=exc.to_detail())
+    data["billed_units"] = billed_units
+    log = AITokenUsageLog(**data)
     db.add(log)
     db.commit()
     db.refresh(log)

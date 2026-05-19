@@ -48,6 +48,7 @@ class AITokenLogCreate(BaseModel):
 
 class AITokenLogOut(AITokenLogCreate):
     id: int
+    billed_units: int = 0
     created_at: datetime
     updated_at: datetime
 
@@ -72,6 +73,7 @@ class TTSLogCreate(BaseModel):
 
 class TTSLogOut(TTSLogCreate):
     id: int
+    billed_units: int = 0
     created_at: datetime
     updated_at: datetime
 

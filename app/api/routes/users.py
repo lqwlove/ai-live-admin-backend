@@ -8,6 +8,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.schemas.common import ListResponse
 from app.schemas.user import PasswordReset, UserCreate, UserOut, UserUpdate
+from app.services.quota import get_user_usage
 
 
 router = APIRouter(prefix="/users", tags=["users"], dependencies=[Depends(get_current_admin)])
@@ -22,6 +23,15 @@ def _ensure_unique_user(db: Session, username: str, email: str, exclude_id: int 
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="用户名或邮箱已存在")
 
 
+def _user_out(db: Session, user: User, *, include_usage: bool = False) -> UserOut:
+    out = UserOut.model_validate(user)
+    if include_usage:
+        summary = get_user_usage(db, user)
+        out.ai_token_used = summary.ai_token_used
+        out.tts_chars_used = summary.tts_chars_used
+    return out
+
+
 @router.get("", response_model=ListResponse[UserOut])
 def list_users(
     db: Session = Depends(get_db),
@@ -31,6 +41,7 @@ def list_users(
     status_filter: str = Query(default="", alias="status"),
     sort: str = "id",
     order: str = "desc",
+    include_usage: bool = Query(default=False),
 ) -> dict:
     stmt = select(User)
     count_stmt = select(func.count()).select_from(User)
@@ -51,7 +62,10 @@ def list_users(
 
     users = db.execute(stmt).scalars().all()
     total = db.execute(count_stmt).scalar_one()
-    return {"data": users, "total": total}
+    return {
+        "data": [_user_out(db, user, include_usage=include_usage) for user in users],
+        "total": total,
+    }
 
 
 @router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED)
@@ -63,6 +77,9 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
         password_hash=get_password_hash(payload.password),
         role=payload.role,
         status=payload.status,
+        ai_token_limit=payload.ai_token_limit,
+        tts_chars_limit=payload.tts_chars_limit,
+        consumption_multiplier=payload.consumption_multiplier,
     )
     db.add(user)
     db.commit()
@@ -71,11 +88,11 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
 
 
 @router.get("/{user_id}", response_model=UserOut)
-def get_user(user_id: int, db: Session = Depends(get_db)) -> User:
+def get_user(user_id: int, db: Session = Depends(get_db)) -> UserOut:
     user = db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
-    return user
+    return _user_out(db, user, include_usage=True)
 
 
 @router.patch("/{user_id}", response_model=UserOut)

@@ -9,7 +9,8 @@ from app.core.security import create_access_token, get_password_hash, verify_pas
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.auth import LoginRequest, TokenResponse
-from app.schemas.user import PasswordChange, UserOut
+from app.schemas.user import AppUsageOut, PasswordChange, UserOut
+from app.services.quota import get_user_usage
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -71,3 +72,22 @@ def change_password(
 @router.get("/app-me", response_model=UserOut)
 def app_me(current_user: User = Depends(get_current_user)) -> User:
     return current_user
+
+
+@router.get("/app-usage", response_model=AppUsageOut)
+def app_usage(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> AppUsageOut:
+    summary = get_user_usage(db, current_user)
+    return AppUsageOut(
+        ai_token_limit=summary.ai_token_limit,
+        tts_chars_limit=summary.tts_chars_limit,
+        consumption_multiplier=summary.consumption_multiplier,
+        ai_token_used=summary.ai_token_used,
+        tts_chars_used=summary.tts_chars_used,
+        ai_token_remaining=summary.ai_token_remaining,
+        tts_chars_remaining=summary.tts_chars_remaining,
+        ai_quota_exceeded=summary.ai_quota_exceeded,
+        tts_quota_exceeded=summary.tts_quota_exceeded,
+    )

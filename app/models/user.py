@@ -1,6 +1,7 @@
 from datetime import datetime
+from decimal import Decimal
 
-from sqlalchemy import DateTime, String
+from sqlalchemy import BigInteger, DateTime, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
@@ -16,6 +17,9 @@ class User(Base, TimestampMixin):
     role: Mapped[str] = mapped_column(String(32), default="user", index=True)
     status: Mapped[str] = mapped_column(String(32), default="active", index=True)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    ai_token_limit: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    tts_chars_limit: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    consumption_multiplier: Mapped[Decimal] = mapped_column(Numeric(4, 1), default=Decimal("1.0"))
 
     live_sessions = relationship("LiveSession", back_populates="user")
     ai_token_logs = relationship("AITokenUsageLog", back_populates="user")
