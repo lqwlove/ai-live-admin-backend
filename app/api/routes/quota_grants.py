@@ -90,3 +90,18 @@ def create_quota_grant(
     db.commit()
     db.refresh(grant)
     return _grant_out(grant)
+
+
+@router.delete("/{grant_id}")
+def delete_quota_grant(grant_id: int, db: Session = Depends(get_db)) -> dict:
+    grant = db.get(QuotaGrant, grant_id)
+    if not grant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="开通记录不存在")
+    if int(grant.consumed or 0) > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="该额度包已被使用，无法删除",
+        )
+    db.delete(grant)
+    db.commit()
+    return {"id": grant_id}
