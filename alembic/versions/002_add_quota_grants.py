@@ -1,9 +1,11 @@
-"""add quota_grants table for package grant records
+"""add quota_grants table (independent quota packages)
 
 Revision ID: 002_add_quota_grants
 Revises: 001_add_user_quota
 Create Date: 2026-06-16
 
+每个额度包是一条独立记录，含独立余额(consumed)与倍率(multiplier)，
+消耗时按开通顺序 FIFO 先用先扣。
 """
 
 from typing import Sequence, Union
@@ -24,7 +26,8 @@ def upgrade() -> None:
         sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id"), nullable=False),
         sa.Column("kind", sa.String(length=32), nullable=False),
         sa.Column("amount", sa.BigInteger(), nullable=False),
-        sa.Column("limit_after", sa.BigInteger(), nullable=True),
+        sa.Column("consumed", sa.BigInteger(), nullable=False, server_default="0"),
+        sa.Column("multiplier", sa.Numeric(4, 1), nullable=False, server_default="1.0"),
         sa.Column("note", sa.String(length=255), nullable=True),
         sa.Column("operator_id", sa.Integer(), sa.ForeignKey("users.id"), nullable=True),
         sa.Column("operator_username", sa.String(length=64), nullable=True),

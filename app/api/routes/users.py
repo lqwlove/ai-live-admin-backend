@@ -27,8 +27,12 @@ def _user_out(db: Session, user: User, *, include_usage: bool = False) -> UserOu
     out = UserOut.model_validate(user)
     if include_usage:
         summary = get_user_usage(db, user)
+        out.ai_token_limit = summary.ai_token_limit
+        out.tts_chars_limit = summary.tts_chars_limit
         out.ai_token_used = summary.ai_token_used
         out.tts_chars_used = summary.tts_chars_used
+        out.ai_token_remaining = summary.ai_token_remaining
+        out.tts_chars_remaining = summary.tts_chars_remaining
     return out
 
 
@@ -69,23 +73,20 @@ def list_users(
 
 
 @router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-def create_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
+def create_user(payload: UserCreate, db: Session = Depends(get_db)) -> UserOut:
     _ensure_unique_user(db, payload.username, payload.email)
+    # 新用户默认无任何额度包，需通过「开通额度包」发放，开通前客户端受限
     user = User(
         username=payload.username,
         email=payload.email,
         password_hash=get_password_hash(payload.password),
         role=payload.role,
         status=payload.status,
-        # 新用户默认无额度（需通过「开通额度包」累加），开通前客户端受限
-        ai_token_limit=0,
-        tts_chars_limit=0,
-        consumption_multiplier=payload.consumption_multiplier,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
-    return user
+    return _user_out(db, user, include_usage=True)
 
 
 @router.get("/{user_id}", response_model=UserOut)

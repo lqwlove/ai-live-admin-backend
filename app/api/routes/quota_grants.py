@@ -8,7 +8,6 @@ from app.models.quota_grant import QuotaGrant
 from app.models.user import User
 from app.schemas.common import ListResponse
 from app.schemas.quota_grant import QuotaGrantCreate, QuotaGrantOut
-from app.services.quota import lock_user_for_quota
 
 
 router = APIRouter(
@@ -16,12 +15,6 @@ router = APIRouter(
     tags=["quota-grants"],
     dependencies=[Depends(get_current_admin)],
 )
-
-
-_LIMIT_FIELD = {
-    "ai_token": "ai_token_limit",
-    "tts_chars": "tts_chars_limit",
-}
 
 
 def _grant_out(grant: QuotaGrant) -> QuotaGrantOut:
@@ -79,25 +72,20 @@ def create_quota_grant(
     db: Session = Depends(get_db),
     admin: User = Depends(get_current_admin),
 ) -> QuotaGrantOut:
-    user = lock_user_for_quota(db, payload.user_id)
+    user = db.get(User, payload.user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
-
-    field = _LIMIT_FIELD[payload.kind]
-    current = getattr(user, field) or 0
-    new_limit = current + payload.amount
-    setattr(user, field, new_limit)
 
     grant = QuotaGrant(
         user_id=user.id,
         kind=payload.kind,
         amount=payload.amount,
-        limit_after=new_limit,
+        consumed=0,
+        multiplier=payload.multiplier,
         note=payload.note,
         operator_id=admin.id,
         operator_username=admin.username,
     )
-    db.add(user)
     db.add(grant)
     db.commit()
     db.refresh(grant)

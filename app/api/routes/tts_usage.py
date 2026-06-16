@@ -12,11 +12,9 @@ from app.models.user import User
 from app.schemas.common import ListResponse
 from app.schemas.usage import TTSLogCreate, TTSLogOut
 from app.services.quota import (
+    KIND_TTS,
     QuotaExceededError,
-    apply_multiplier,
-    check_quota,
-    get_user_multiplier,
-    get_user_usage,
+    consume_quota,
     lock_user_for_quota,
 )
 
@@ -95,11 +93,8 @@ def create_tts_log(
         user = lock_user_for_quota(db, payload.user_id)
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
-        multiplier = get_user_multiplier(user)
-        billed_units = apply_multiplier(payload.text_chars, multiplier)
-        usage = get_user_usage(db, user)
         try:
-            check_quota(user, usage, tts_delta=billed_units)
+            billed_units = consume_quota(db, user, KIND_TTS, payload.text_chars)
         except QuotaExceededError as exc:
             db.rollback()
             return JSONResponse(status_code=status.HTTP_402_PAYMENT_REQUIRED, content=exc.to_detail())
