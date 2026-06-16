@@ -170,12 +170,18 @@ try:
     if "alembic_version" in tables:
         state = "UPGRADE"
     elif "quota_grants" in tables:
-        # 所有表（含本次新增表）都已被 create_all 建好，只需标记版本
-        state = "STAMP_HEAD"
+        cols = {c["name"] for c in insp.get_columns("quota_grants")}
+        if "consumed" in cols:
+            # quota_grants 已是新结构，只需标记版本
+            state = "STAMP_HEAD"
+        else:
+            # 旧结构 quota_grants（create_all 建出，缺 consumed/multiplier）：
+            # 标记到 002 再 upgrade，让 003 幂等补列
+            state = "STAMP_002"
     elif "users" in tables and "consumption_multiplier" in {
         c["name"] for c in insp.get_columns("users")
     }:
-        # 001 的列已存在但没有版本记录：先打 001 基线，再只升级到本次的 002
+        # 001 的列已存在但没有版本记录：先打 001 基线，再升级
         state = "STAMP_001"
     else:
         # 全新库或比 001 更早的库：从头正常升级
@@ -193,8 +199,13 @@ case "$MIGRATE_STATE" in
     python -m alembic upgrade head
     ;;
   STAMP_001)
-    log "历史库无版本记录：先 stamp 到 001 基线，再 upgrade head（仅新增 quota_grants 表）"
+    log "历史库无版本记录：先 stamp 到 001 基线，再 upgrade head"
     python -m alembic stamp 001_add_user_quota
+    python -m alembic upgrade head
+    ;;
+  STAMP_002)
+    log "检测到旧结构 quota_grants：先 stamp 到 002，再 upgrade head（由 003 幂等补列）"
+    python -m alembic stamp 002_add_quota_grants
     python -m alembic upgrade head
     ;;
   STAMP_HEAD)
