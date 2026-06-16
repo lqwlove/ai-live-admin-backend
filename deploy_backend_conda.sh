@@ -4,7 +4,7 @@ set -Eeuo pipefail
 # Deploy tk-live admin backend with an existing conda installation.
 #
 # Default assumptions:
-# - Backend path: /www/app/admin-system-backend
+# - Backend path: /www/app/ai-live-admin-backend
 # - Conda env: tk-live-admin
 # - Backend binds: 127.0.0.1:8100
 # - PostgreSQL is already installed and DATABASE_URL is configured in backend/.env
@@ -13,7 +13,7 @@ set -Eeuo pipefail
 #   sudo bash deploy_backend_conda.sh
 #
 # Optional env overrides:
-#   BACKEND_DIR=/www/app/admin-system-backend
+#   BACKEND_DIR=/www/app/ai-live-admin-backend
 #   PROJECT_DIR=/opt/tk-live
 #   CONDA_ENV_NAME=tk-live-admin
 #   PYTHON_VERSION=3.12
@@ -42,14 +42,10 @@ resolve_backend_dir() {
       printf '%s\n' "$PROJECT_DIR"
       return
     fi
-    if [[ -f "$PROJECT_DIR/admin-system/backend/pyproject.toml" ]]; then
-      printf '%s\n' "$PROJECT_DIR/admin-system/backend"
-      return
-    fi
   fi
 
-  if [[ -f "/www/app/admin-system-backend/pyproject.toml" ]]; then
-    printf '%s\n' "/www/app/admin-system-backend"
+  if [[ -f "/www/app/ai-live-admin-backend/pyproject.toml" ]]; then
+    printf '%s\n' "/www/app/ai-live-admin-backend"
     return
   fi
 
@@ -78,7 +74,7 @@ require_cmd() {
 }
 
 if [[ "$(id -u)" -ne 0 ]]; then
-  fail "请使用 root 运行，例如：sudo BACKEND_DIR=/www/app/admin-system-backend bash deploy_backend_conda.sh"
+  fail "请使用 root 运行，例如：sudo BACKEND_DIR=/www/app/ai-live-admin-backend bash deploy_backend_conda.sh"
 fi
 
 require_cmd systemctl
@@ -86,7 +82,7 @@ require_cmd curl
 
 BACKEND_DIR="$(resolve_backend_dir || true)"
 if [[ -z "${BACKEND_DIR:-}" ]]; then
-  fail "无法定位后端目录。请指定：sudo BACKEND_DIR=/www/app/admin-system-backend bash deploy_backend_conda.sh"
+  fail "无法定位后端目录。请指定：sudo BACKEND_DIR=/www/app/ai-live-admin-backend bash deploy_backend_conda.sh"
 fi
 
 if [[ ! -d "$BACKEND_DIR" ]]; then
