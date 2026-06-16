@@ -24,3 +24,8 @@ class User(Base, TimestampMixin):
     live_sessions = relationship("LiveSession", back_populates="user")
     ai_token_logs = relationship("AITokenUsageLog", back_populates="user")
     tts_logs = relationship("TTSUsageLog", back_populates="user")
+    quota_grants = relationship(
+        "QuotaGrant",
+        foreign_keys="QuotaGrant.user_id",
+        back_populates="user",
+    )

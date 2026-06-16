@@ -77,8 +77,9 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
         password_hash=get_password_hash(payload.password),
         role=payload.role,
         status=payload.status,
-        ai_token_limit=payload.ai_token_limit,
-        tts_chars_limit=payload.tts_chars_limit,
+        # 新用户默认无额度（需通过「开通额度包」累加），开通前客户端受限
+        ai_token_limit=0,
+        tts_chars_limit=0,
         consumption_multiplier=payload.consumption_multiplier,
     )
     db.add(user)

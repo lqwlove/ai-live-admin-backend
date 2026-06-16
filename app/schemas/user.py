@@ -18,8 +18,6 @@ class UserBase(BaseModel):
     email: str = Field(min_length=3, max_length=255)
     role: str = "user"
     status: str = "active"
-    ai_token_limit: int | None = Field(default=None, ge=0)
-    tts_chars_limit: int | None = Field(default=None, ge=0)
     consumption_multiplier: Decimal = Field(default=Decimal("1.0"))
 
     @field_validator("consumption_multiplier", mode="before")
@@ -37,8 +35,6 @@ class UserUpdate(BaseModel):
     email: str | None = Field(default=None, min_length=3, max_length=255)
     role: str | None = None
     status: str | None = None
-    ai_token_limit: int | None = Field(default=None, ge=0)
-    tts_chars_limit: int | None = Field(default=None, ge=0)
     consumption_multiplier: Decimal | None = None
 
     @field_validator("consumption_multiplier", mode="before")
@@ -63,6 +59,9 @@ class UserOut(UserBase):
     created_at: datetime
     updated_at: datetime
     last_login_at: datetime | None = None
+    # 累计已开通额度（只读，由开通额度包累加，NULL 表示不限）
+    ai_token_limit: int | None = None
+    tts_chars_limit: int | None = None
     ai_token_used: int | None = None
     tts_chars_used: int | None = None
 
