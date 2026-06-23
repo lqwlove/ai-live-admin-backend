@@ -12,6 +12,8 @@ from app.models import (  # noqa: F401
     QuotaGrant,
     TTSUsageLog,
     User,
+    UserSetting,
+    VoicePreset,
 )
 
 
