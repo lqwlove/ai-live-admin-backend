@@ -88,3 +88,15 @@ class DashboardSummary(BaseModel):
     tts_chars_today: int
     ai_failures_today: int
     tts_failures_today: int
+
+
+class UsageTrendPoint(BaseModel):
+    date: str  # YYYY-MM-DD
+    ai_tokens: int
+    tts_chars: int
+
+
+class UsageTrendResponse(BaseModel):
+    points: list[UsageTrendPoint]
+    ai_tokens_total: int
+    tts_chars_total: int
