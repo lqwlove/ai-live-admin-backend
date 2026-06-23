@@ -7,6 +7,7 @@ from app.api.routes.ai_usage import integration_router as ai_integration_router
 from app.api.routes.integration_users import router as integration_users_router
 from app.api.routes.ai_usage import router as ai_usage_router
 from app.api.routes.live_sessions import integration_router as live_sessions_integration_router
+from app.api.routes.live_sessions import router as live_sessions_router
 from app.api.routes.tts_usage import integration_router as tts_integration_router
 from app.api.routes.tts_usage import router as tts_usage_router
 from app.core.config import get_settings
@@ -45,6 +46,7 @@ def create_app() -> FastAPI:
     app.include_router(ai_usage_router, prefix=settings.api_prefix)
     app.include_router(tts_usage_router, prefix=settings.api_prefix)
     app.include_router(dashboard.router, prefix=settings.api_prefix)
+    app.include_router(live_sessions_router, prefix=settings.api_prefix)
     app.include_router(live_sessions_integration_router, prefix=settings.api_prefix)
     app.include_router(ai_integration_router, prefix=settings.api_prefix)
     app.include_router(tts_integration_router, prefix=settings.api_prefix)

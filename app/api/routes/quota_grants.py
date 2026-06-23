@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, get_current_user
 from app.db.session import get_db
 from app.models.quota_grant import QuotaGrant
 from app.models.user import User
@@ -13,7 +13,7 @@ from app.schemas.quota_grant import QuotaGrantCreate, QuotaGrantOut
 router = APIRouter(
     prefix="/quota-grants",
     tags=["quota-grants"],
-    dependencies=[Depends(get_current_admin)],
+    dependencies=[Depends(get_current_user)],
 )
 
 
@@ -27,6 +27,7 @@ def _grant_out(grant: QuotaGrant) -> QuotaGrantOut:
 @router.get("", response_model=ListResponse[QuotaGrantOut])
 def list_quota_grants(
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=25, ge=1, le=100),
     user_id: int | None = None,
@@ -34,6 +35,10 @@ def list_quota_grants(
     sort: str = "id",
     order: str = "desc",
 ) -> dict:
+    # 非管理员只能查看自己的额度包（忽略传入的 user_id）
+    if current_user.role != "admin":
+        user_id = current_user.id
+
     stmt = select(QuotaGrant)
     count_stmt = select(func.count()).select_from(QuotaGrant)
     conditions = []
@@ -59,9 +64,16 @@ def list_quota_grants(
 
 
 @router.get("/{grant_id}", response_model=QuotaGrantOut)
-def get_quota_grant(grant_id: int, db: Session = Depends(get_db)) -> QuotaGrantOut:
+def get_quota_grant(
+    grant_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> QuotaGrantOut:
     grant = db.get(QuotaGrant, grant_id)
     if not grant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="开通记录不存在")
+    # 非管理员只能查看自己的额度包
+    if current_user.role != "admin" and grant.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="开通记录不存在")
     return _grant_out(grant)
 
@@ -93,7 +105,11 @@ def create_quota_grant(
 
 
 @router.delete("/{grant_id}")
-def delete_quota_grant(grant_id: int, db: Session = Depends(get_db)) -> dict:
+def delete_quota_grant(
+    grant_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+) -> dict:
     grant = db.get(QuotaGrant, grant_id)
     if not grant:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="开通记录不存在")

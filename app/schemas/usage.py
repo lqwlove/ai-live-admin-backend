@@ -7,7 +7,9 @@ from pydantic import BaseModel, ConfigDict, Field
 class LiveSessionOut(BaseModel):
     id: int
     user_id: int | None = None
+    user_username: str | None = None
     platform: str
+    room_id: str = ""
     status: str
     started_at: datetime | None = None
     ended_at: datetime | None = None
@@ -23,6 +25,7 @@ class LiveSessionOut(BaseModel):
 class LiveSessionStart(BaseModel):
     user_id: int | None = None
     platform: str = ""
+    room_id: str = ""
 
 
 class LiveSessionFinish(BaseModel):

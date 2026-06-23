@@ -12,6 +12,7 @@ class LiveSession(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     platform: Mapped[str] = mapped_column(String(64), default="", index=True)
+    room_id: Mapped[str] = mapped_column(String(128), default="")  # 直播间 ID（按平台取对应标识）
     status: Mapped[str] = mapped_column(String(32), default="running", index=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
