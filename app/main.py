@@ -2,7 +2,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, dashboard, quota_grants, users
+from app.api.routes import auth, dashboard, quota_grants, settings as settings_routes, users
 from app.api.routes.ai_usage import integration_router as ai_integration_router
 from app.api.routes.integration_users import router as integration_users_router
 from app.api.routes.ai_usage import router as ai_usage_router
@@ -40,6 +40,8 @@ def create_app() -> FastAPI:
     app.include_router(auth.router, prefix=settings.api_prefix)
     app.include_router(users.router, prefix=settings.api_prefix)
     app.include_router(quota_grants.router, prefix=settings.api_prefix)
+    app.include_router(settings_routes.router, prefix=settings.api_prefix)
+    app.include_router(settings_routes.integration_router, prefix=settings.api_prefix)
     app.include_router(ai_usage_router, prefix=settings.api_prefix)
     app.include_router(tts_usage_router, prefix=settings.api_prefix)
     app.include_router(dashboard.router, prefix=settings.api_prefix)
